@@ -7,7 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/floriansw/go-hll-rcon/rcon"
+	"github.com/2KU77B0N3S/go-hll-rcon/rcon"
 	"io"
 	"net"
 	"reflect"
