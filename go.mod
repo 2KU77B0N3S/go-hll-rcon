@@ -1,4 +1,4 @@
-module github.com/floriansw/go-hll-rcon
+module github.com/2KU77B0N3S/go-hll-rcon
 
 go 1.23.0
 
