@@ -2,7 +2,7 @@ package log_loop
 
 import (
 	"context"
-	"github.com/floriansw/go-hll-rcon/rcon"
+	"github.com/2KU77B0N3S/go-hll-rcon/rcon"
 	"io"
 	"log/slog"
 	"time"
