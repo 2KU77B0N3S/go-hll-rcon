@@ -1,7 +1,7 @@
 package log_loop_test
 
 import (
-	"github.com/floriansw/go-hll-rcon/log_loop"
+	"github.com/2KU77B0N3S/go-hll-rcon/log_loop"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"time"
