@@ -3,8 +3,8 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/floriansw/go-hll-rcon/rconv2"
-	"github.com/floriansw/go-hll-rcon/rconv2/api"
+	"github.com/2KU77B0N3S/go-hll-rcon/rconv2"
+	"github.com/2KU77B0N3S/go-hll-rcon/rconv2/api"
 	"github.com/rivo/tview"
 	"log/slog"
 	"os"
