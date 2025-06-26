@@ -130,7 +130,7 @@ func (c *Connection) RemoveMapFromRotation(ctx context.Context, index int32) err
 	return err
 }
 
-func (c *Connection) RemoveMapToSequence(ctx context.Context, index int32) error {
+func (c *Connection) RemoveMapFromSequence(ctx context.Context, index int32) error {
 	_, err := execCommand[api.RemoveMapFromSequence, any](ctx, c.socket, api.RemoveMapFromSequence{
 		Index: index,
 	})
@@ -210,16 +210,16 @@ func (c *Connection) PunishPlayer(ctx context.Context, playerId, reason string) 
 	return err
 }
 
-func (c *Connection) Kick(ctx context.Context, playerId, reason string) error {
-	_, err := execCommand[api.Kick, any](ctx, c.socket, api.Kick{
+func (c *Connection) KickPlayer(ctx context.Context, playerId, reason string) error {
+	_, err := execCommand[api.KickPlayer, any](ctx, c.socket, api.KickPlayer{
 		Reason:   reason,
 		PlayerId: playerId,
 	})
 	return err
 }
 
-func (c *Connection) TempBan(ctx context.Context, playerId string, duration int32, reason, adminName string) error {
-	_, err := execCommand[api.TempBan, any](ctx, c.socket, api.TempBan{
+func (c *Connection) TemporaryBanPlayer(ctx context.Context, playerId string, duration int32, reason, adminName string) error {
+	_, err := execCommand[api.TemporaryBanPlayer, any](ctx, c.socket, api.TemporaryBanPlayer{
 		Reason:    reason,
 		PlayerId:  playerId,
 		Duration:  duration,
@@ -228,15 +228,15 @@ func (c *Connection) TempBan(ctx context.Context, playerId string, duration int3
 	return err
 }
 
-func (c *Connection) RemoveTempBan(ctx context.Context, playerId string) error {
-	_, err := execCommand[api.RemoveTempBan, any](ctx, c.socket, api.RemoveTempBan{
+func (c *Connection) RemoveTemporaryBan(ctx context.Context, playerId string) error {
+	_, err := execCommand[api.RemoveTemporaryBan, any](ctx, c.socket, api.RemoveTemporaryBan{
 		PlayerId: playerId,
 	})
 	return err
 }
 
-func (c *Connection) PermanentBan(ctx context.Context, playerId, reason, adminName string) error {
-	_, err := execCommand[api.PermanentBan, any](ctx, c.socket, api.PermanentBan{
+func (c *Connection) PermanentBanPlayer(ctx context.Context, playerId, reason, adminName string) error {
+	_, err := execCommand[api.PermanentBanPlayer, any](ctx, c.socket, api.PermanentBanPlayer{
 		Reason:    reason,
 		PlayerId:  playerId,
 		AdminName: adminName,
@@ -265,20 +265,20 @@ func (c *Connection) AutoBalanceThreshold(ctx context.Context, threshold int32) 
 	return err
 }
 
-func (c *Connection) VoteKickEnabled(ctx context.Context, enabled bool) error {
-	_, err := execCommand[api.VoteKickEnabled, any](ctx, c.socket, api.VoteKickEnabled{
+func (c *Connection) SetVoteToKick(ctx context.Context, enabled bool) error {
+	_, err := execCommand[api.SetVoteToKick, any](ctx, c.socket, api.SetVoteToKick{
 		Enabled: enabled,
 	})
 	return err
 }
 
-func (c *Connection) ResetKickThreshold(ctx context.Context) error {
-	_, err := execCommand[api.ResetKickThreshold, any](ctx, c.socket, api.ResetKickThreshold{})
+func (c *Connection) ResetVoteToKickThreshold(ctx context.Context) error {
+	_, err := execCommand[api.ResetVoteToKickThreshold, any](ctx, c.socket, api.ResetVoteToKickThreshold{})
 	return err
 }
 
-func (c *Connection) VoteKickThreshold(ctx context.Context, threshold string) error {
-	_, err := execCommand[api.VoteKickThreshold, any](ctx, c.socket, api.VoteKickThreshold{
+func (c *Connection) SetVoteToKickThreshold(ctx context.Context, threshold string) error {
+	_, err := execCommand[api.SetVoteToKickThreshold, any](ctx, c.socket, api.SetVoteToKickThreshold{
 		ThresholdValue: threshold,
 	})
 	return err
