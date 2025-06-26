@@ -107,6 +107,13 @@ func (c *Connection) AddAdmin(ctx context.Context, playerId, adminGroup, comment
 	return err
 }
 
+func (c *Connection) RemoveAdmin(ctx context.Context, playerId string) error {
+	_, err := execCommand[api.RemoveAdmin, any](ctx, c.socket, api.RemoveAdmin{
+		PlayerId: playerId,
+	})
+	return err
+}
+
 func (c *Connection) AddMapToRotation(ctx context.Context, mapName string, index int32) error {
 	_, err := execCommand[api.AddMapToRotation, any](ctx, c.socket, api.AddMapToRotation{
 		MapName: mapName,
@@ -286,6 +293,73 @@ func (c *Connection) SetVoteToKickThreshold(ctx context.Context, threshold strin
 
 func (c *Connection) ClientReferenceData(ctx context.Context, command string) (*string, error) {
 	return execCommand[api.ClientReferenceData, string](ctx, c.socket, api.ClientReferenceData(command))
+}
+
+func (c *Connection) AddBannedWords(ctx context.Context, bannedWords string) error {
+	_, err := execCommand[api.AddBannedWords, any](ctx, c.socket, api.AddBannedWords{
+		BannedWords: bannedWords,
+	})
+	return err
+}
+
+func (c *Connection) RemoveBannedWords(ctx context.Context, bannedWords string) error {
+	_, err := execCommand[api.RemoveBannedWords, any](ctx, c.socket, api.RemoveBannedWords{
+		BannedWords: bannedWords,
+	})
+	return err
+}
+
+func (c *Connection) AddVipPlayer(ctx context.Context, playerId, description string) error {
+	_, err := execCommand[api.AddVipPlayer, any](ctx, c.socket, api.AddVipPlayer{
+		PlayerId:    playerId,
+		Description: description,
+	})
+	return err
+}
+
+func (c *Connection) RemoveVipPlayer(ctx context.Context, playerId string) error {
+	_, err := execCommand[api.RemoveVipPlayer, any](ctx, c.socket, api.RemoveVipPlayer{
+		PlayerId: playerId,
+	})
+	return err
+}
+
+func (c *Connection) SetMatchTimer(ctx context.Context, gameMode string, matchLength int32) error {
+	_, err := execCommand[api.SetMatchTimer, any](ctx, c.socket, api.SetMatchTimer{
+		GameMode:    gameMode,
+		MatchLength: matchLength,
+	})
+	return err
+}
+
+func (c *Connection) RemoveMatchTimer(ctx context.Context, gameMode string) error {
+	_, err := execCommand[api.RemoveMatchTimer, any](ctx, c.socket, api.RemoveMatchTimer{
+		GameMode: gameMode,
+	})
+	return err
+}
+
+func (c *Connection) SetWarmupTimer(ctx context.Context, gameMode string, warmupLength int32) error {
+	_, err := execCommand[api.SetWarmupTimer, any](ctx, c.socket, api.SetWarmupTimer{
+		GameMode:      gameMode,
+		WarmupLength: warmupLength,
+	})
+	return err
+}
+
+func (c *Connection) RemoveWarmupTimer(ctx context.Context, gameMode string) error {
+	_, err := execCommand[api.RemoveWarmupTimer, any](ctx, c.socket, api.RemoveWarmupTimer{
+		GameMode: gameMode,
+	})
+	return err
+}
+
+func (c *Connection) SetMapWeatherToggle(ctx context.Context, mapId string, enable bool) error {
+	_, err := execCommand[api.SetMapWeatherToggle, any](ctx, c.socket, api.SetMapWeatherToggle{
+		MapId:  mapId,
+		Enable: enable,
+	})
+	return err
 }
 
 func execCommand[T, U any](ctx context.Context, so *socket, req T) (result *U, err error) {
