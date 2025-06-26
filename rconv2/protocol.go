@@ -7,7 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/2KU77B0N3S/go-hll-rcon/rcon"
+	"github.com/floriansw/go-hll-rcon/rcon"
 	"io"
 	"net"
 	"reflect"
@@ -174,30 +174,30 @@ func (r *socket) login() error {
 	return nil
 }
 
-func (r *socket) greetServer() error {
-    req := rawRequest{
-        Command: "ServerConnect",
-        Version: 2,
-        Body:    nil,
-    }
-    err := r.write(marshal(req))
-    if err != nil {
-        return err
-    }
-    res, err := r.read()
-    if err != nil {
-        return err
-    }
-    var data Response[string]
-    err = json.Unmarshal(res, &data)
-    if err != nil {
-        return err
-    }
-    if data.StatusCode != 200 {
-        return NewUnexpectedStatus(data.StatusCode, data.StatusMessage)
-    }
-    r.xorKey, err = base64.StdEncoding.DecodeString(data.Content)
-    return err
+func (r *socket) greatServer() error {
+	req := rawRequest{
+		Command: "ServerConnect",
+		Version: 2,
+		Body:    nil,
+	}
+	err := r.write(marshal(req))
+	if err != nil {
+		return err
+	}
+	res, err := r.read()
+	if err != nil {
+		return err
+	}
+	var data Response[[]byte]
+	err = json.Unmarshal(res, &data)
+	if err != nil {
+		return err
+	}
+	if data.StatusCode != 200 {
+		return NewUnexpectedStatus(data.StatusCode, data.StatusMessage)
+	}
+	r.xorKey, err = base64.StdEncoding.AppendDecode(r.xorKey, []byte(data.Content))
+	return err
 }
 
 func marshal(v rawRequest) []byte {
