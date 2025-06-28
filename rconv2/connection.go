@@ -2,7 +2,7 @@ package rconv2
 
 import (
 	"context"
-	"github.com/2KU77B0N3S/go-hll-rcon/rconv2/api"
+	"github.com/floriansw/go-hll-rcon/rconv2/api"
 )
 
 // Connection represents a persistent connection to a HLL server using RCon. It can be used to issue commands against
