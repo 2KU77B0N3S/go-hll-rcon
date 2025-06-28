@@ -174,7 +174,7 @@ func (r *socket) login() error {
 	return nil
 }
 
-func (r *socket) greatServer() error {
+func (r *socket) greetServer() error {
 	req := rawRequest{
 		Command: "ServerConnect",
 		Version: 2,
@@ -197,7 +197,7 @@ func (r *socket) greatServer() error {
 		return NewUnexpectedStatus(data.StatusCode, data.StatusMessage)
 	}
 	r.xorKey, err = base64.StdEncoding.AppendDecode(r.xorKey, []byte(data.Content))
-	return err
+		return err
 }
 
 func marshal(v rawRequest) []byte {
