@@ -174,7 +174,7 @@ func (r *socket) login() error {
 	return nil
 }
 
-func (r *socket) greetServer() error {
+func (r *socket) greatServer() error {
 	req := rawRequest{
 		Command: "ServerConnect",
 		Version: 2,
