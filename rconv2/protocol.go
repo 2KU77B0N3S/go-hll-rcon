@@ -113,23 +113,20 @@ func (r *socket) Context() context.Context {
 }
 
 func makeConnectionV2(h string, p int) (net.Conn, error) {
-	con, err := net.DialTimeout("tcp4", fmt.Sprintf("%s:%d", h, p), 5*time.Second)
-	if err != nil {
-		return nil, err
-	}
-	// use an intermediate timeout, it's unlikely that a new connection times out, however, if it does for whatever reason
-	// it might get stuck here
-	err = con.SetDeadline(time.Now().Add(20 * time.Second))
-	if err != nil {
-		return nil, err
-	}
-	// This is an XOR key used in RCONv1, however, the "real" key to use will be red in the ServerConnect command
-	_, err = con.Read(make([]byte, 4))
-	if err != nil {
-		return nil, err
-	}
-
-	return con, err
+    con, err := net.DialTimeout("tcp4", fmt.Sprintf("%s:%d", h, p), 5*time.Second)
+    if err != nil {
+        return nil, err
+    }
+    err = con.SetDeadline(time.Now().Add(20 * time.Second))
+    if err != nil {
+        return nil, err
+    }
+    buf := make([]byte, 4)
+    n, err := con.Read(buf)
+    if err != nil || n != 4 {
+        return nil, fmt.Errorf("failed to read initial XOR key: %w", err)
+    }
+    return con, nil
 }
 
 func newSocket(h string, p int, pw string) (*socket, error) {
@@ -175,29 +172,32 @@ func (r *socket) login() error {
 }
 
 func (r *socket) greatServer() error {
-	req := rawRequest{
-		Command: "ServerConnect",
-		Version: 2,
-		Body:    nil,
-	}
-	err := r.write(marshal(req))
-	if err != nil {
-		return err
-	}
-	res, err := r.read()
-	if err != nil {
-		return err
-	}
-	var data Response[[]byte]
-	err = json.Unmarshal(res, &data)
-	if err != nil {
-		return err
-	}
-	if data.StatusCode != 200 {
-		return NewUnexpectedStatus(data.StatusCode, data.StatusMessage)
-	}
-	r.xorKey, err = base64.StdEncoding.AppendDecode(r.xorKey, []byte(data.Content))
-		return err
+    req := rawRequest{
+        Command: "ServerConnect",
+        Version: 2,
+        Body:    nil,
+    }
+    err := r.write(marshal(req))
+    if err != nil {
+        return err
+    }
+    res, err := r.read()
+    if err != nil {
+        return err
+    }
+    var data Response[string]
+    err = json.Unmarshal(res, &data)
+    if err != nil {
+        return err
+    }
+    if data.StatusCode != 200 {
+        return NewUnexpectedStatus(data.StatusCode, data.StatusMessage)
+    }
+    r.xorKey, err = base64.StdEncoding.DecodeString(data.Content)
+    if err != nil {
+        return fmt.Errorf("failed to decode XOR key: %w", err)
+    }
+    return nil
 }
 
 func marshal(v rawRequest) []byte {
@@ -246,24 +246,21 @@ func (r *socket) reconnect(orig error) error {
 }
 
 func (r *socket) read() ([]byte, error) {
-	// each response has a fixed 8-byte header, the first 4 bytes is the response Id assigned by the server
-	// and the next 4 bytes is the content length of the response body
-	// byte format as used in python is: <II
-	// in go's binary encoding this should be reading two unsigned int in a little-endian byte order
-	var responseId, contentLength int32
-	err := binary.Read(r.con, binary.LittleEndian, &responseId)
-	if err != nil {
-		return nil, fmt.Errorf("read responseId failed: %w", err)
-	}
-	err = binary.Read(r.con, binary.LittleEndian, &contentLength)
-	if err != nil {
-		return nil, fmt.Errorf("read content length failed: %w", err)
-	}
-
-	answer := make([]byte, contentLength)
-	_, err = io.ReadFull(r.con, answer)
-
-	return r.xor(answer), err
+    var responseId, contentLength uint32
+    err := binary.Read(r.con, binary.LittleEndian, &responseId)
+    if err != nil {
+        return nil, fmt.Errorf("read responseId failed: %w", err)
+    }
+    err = binary.Read(r.con, binary.LittleEndian, &contentLength)
+    if err != nil {
+        return nil, fmt.Errorf("read content length failed: %w", err)
+    }
+    answer := make([]byte, contentLength)
+    _, err = io.ReadFull(r.con, answer)
+    if err != nil {
+        return nil, fmt.Errorf("read response body failed: %w", err)
+    }
+    return r.xor(answer), nil
 }
 
 func (r *socket) xor(src []byte) []byte {
