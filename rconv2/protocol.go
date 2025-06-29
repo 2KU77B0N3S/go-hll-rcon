@@ -206,21 +206,29 @@ func marshal(v rawRequest) []byte {
 }
 
 func (r *socket) write(cmd []byte) error {
-	s, err := r.con.Write(r.xor(cmd))
-	if errors.Is(err, syscall.EPIPE) {
-		err = r.reconnect(err)
-		if err != nil {
-			return err
-		}
-		return r.write(cmd)
-	}
-	if s != len(cmd) {
-		return fmt.Errorf("%w Cmd: %s (%d), sent: %d", rcon.ErrWriteSentUnequal, cmd, len(cmd), s)
-	}
+	msg := r.xor(cmd)
+
+	header := make([]byte, 8)
+	binary.LittleEndian.PutUint32(header[0:4], uint32(time.Now().UnixNano()&0xFFFFFFFF)) // Unique ID
+	binary.LittleEndian.PutUint32(header[4:8], uint32(len(msg)))
+
+	full := append(header, msg...)
+	s, err := r.con.Write(full)
 	if err != nil {
-		r.resetReconnectCount()
+		if errors.Is(err, syscall.EPIPE) {
+			err = r.reconnect(err)
+			if err != nil {
+				return err
+			}
+			return r.write(cmd) // retry original command
+		}
+		return err
 	}
-	return err
+	if s != len(full) {
+		return fmt.Errorf("%w Cmd: %s (%d), sent: %d", rcon.ErrWriteSentUnequal, cmd, len(full), s)
+	}
+	r.resetReconnectCount()
+	return nil
 }
 
 func (r *socket) reconnect(orig error) error {
