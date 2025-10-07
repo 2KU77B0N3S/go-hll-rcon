@@ -117,20 +117,24 @@ func makeConnectionV2(h string, p int) (net.Conn, error) {
 	if err != nil {
 		return nil, err
 	}
-	// use an intermediate timeout, it's unlikely that a new connection times out, however, if it does for whatever reason
-	// it might get stuck here
-	err = con.SetDeadline(time.Now().Add(20 * time.Second))
-	if err != nil {
-		return nil, err
-	}
-	// This is an XOR key used in RCONv1, however, the "real" key to use will be red in the ServerConnect command
-	_, err = con.Read(make([]byte, 4))
-	if err != nil {
+
+	if err = con.SetDeadline(time.Now().Add(20 * time.Second)); err != nil {
+		con.Close()
 		return nil, err
 	}
 
-	return con, err
+	buf := make([]byte, 4)
+	_ = con.SetReadDeadline(time.Now().Add(500 * time.Millisecond))
+	n, _ := con.Read(buf)
+	_ = con.SetReadDeadline(time.Time{})
+
+	if n == 4 {
+	} else {
+	}
+
+	return con, nil
 }
+
 
 func newSocket(h string, p int, pw string) (*socket, error) {
 	r := &socket{
