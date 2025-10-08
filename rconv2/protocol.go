@@ -7,10 +7,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/floriansw/go-hll-rcon/rcon"
+	"github.com/f2KU77B0N3S/go-hll-rcon/rcon"
 	"io"
 	"net"
 	"reflect"
+	"sync/atomic"
 	"syscall"
 	"time"
 )
@@ -18,6 +19,8 @@ import (
 const (
 	responseHeaderLength = 8
 )
+
+var requestCounter uint32 // global atomic counter for request IDs
 
 type socket struct {
 	con            net.Conn
@@ -90,10 +93,10 @@ func (r *Response[T]) Body() (res T) {
 }
 
 type rawRequest struct {
-	Command   string      `json:"Name"`
-	AuthToken string      `json:"AuthToken"`
-	Body      interface{} `json:"ContentBody"`
-	Version   int         `json:"Version"`
+	Command   string      `json:"name"`
+	AuthToken string      `json:"authToken"`
+	Body      interface{} `json:"contentBody"`
+	Version   int         `json:"version"`
 }
 
 func (r *socket) SetContext(ctx context.Context) error {
@@ -117,7 +120,6 @@ func makeConnectionV2(h string, p int) (net.Conn, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	if err = con.SetDeadline(time.Now().Add(20 * time.Second)); err != nil {
 		con.Close()
 		return nil, err
@@ -125,16 +127,11 @@ func makeConnectionV2(h string, p int) (net.Conn, error) {
 
 	buf := make([]byte, 4)
 	_ = con.SetReadDeadline(time.Now().Add(500 * time.Millisecond))
-	n, _ := con.Read(buf)
+	con.Read(buf)
 	_ = con.SetReadDeadline(time.Time{})
-
-	if n == 4 {
-	} else {
-	}
 
 	return con, nil
 }
-
 
 func newSocket(h string, p int, pw string) (*socket, error) {
 	r := &socket{
@@ -147,7 +144,10 @@ func newSocket(h string, p int, pw string) (*socket, error) {
 }
 
 func (r *socket) Close() error {
-	return r.con.Close()
+	if r.con != nil {
+		return r.con.Close()
+	}
+	return nil
 }
 
 func (r *socket) login() error {
@@ -178,7 +178,7 @@ func (r *socket) login() error {
 	return nil
 }
 
-func (r *socket) greatServer() error {
+func (r *socket) greetServer() error {
 	req := rawRequest{
 		Command: "ServerConnect",
 		Version: 2,
@@ -192,7 +192,7 @@ func (r *socket) greatServer() error {
 	if err != nil {
 		return err
 	}
-	var data Response[[]byte]
+	var data Response[string]
 	err = json.Unmarshal(res, &data)
 	if err != nil {
 		return err
@@ -200,7 +200,7 @@ func (r *socket) greatServer() error {
 	if data.StatusCode != 200 {
 		return NewUnexpectedStatus(data.StatusCode, data.StatusMessage)
 	}
-	r.xorKey, err = base64.StdEncoding.AppendDecode(r.xorKey, []byte(data.Content))
+	r.xorKey, err = base64.StdEncoding.DecodeString(data.Content)
 	return err
 }
 
@@ -209,8 +209,16 @@ func marshal(v rawRequest) []byte {
 	return req
 }
 
+// --- Fixed write() with <II> header ---
 func (r *socket) write(cmd []byte) error {
-	s, err := r.con.Write(r.xor(cmd))
+	reqID := atomic.AddUint32(&requestCounter, 1)
+	header := make([]byte, 8)
+	binary.LittleEndian.PutUint32(header[0:4], reqID)
+	binary.LittleEndian.PutUint32(header[4:8], uint32(len(cmd)))
+
+	payload := append(header, r.xor(cmd)...)
+
+	s, err := r.con.Write(payload)
 	if errors.Is(err, syscall.EPIPE) {
 		err = r.reconnect(err)
 		if err != nil {
@@ -218,7 +226,7 @@ func (r *socket) write(cmd []byte) error {
 		}
 		return r.write(cmd)
 	}
-	if s != len(cmd) {
+	if s != len(payload) {
 		return fmt.Errorf("%w Cmd: %s (%d), sent: %d", rcon.ErrWriteSentUnequal, cmd, len(cmd), s)
 	}
 	if err != nil {
@@ -233,14 +241,17 @@ func (r *socket) reconnect(orig error) error {
 	}
 	r.reconnectCount++
 	con, err := makeConnectionV2(r.host, r.port)
+	if err != nil {
+		return fmt.Errorf("dial failed: %w", err)
+	}
 	r.con = con
 	err = r.SetContext(r.Context())
 	if err != nil {
 		return err
 	}
-	err = r.greatServer()
+	err = r.greetServer()
 	if err != nil {
-		return fmt.Errorf("great failed: %s, original error: %w", err.Error(), orig)
+		return fmt.Errorf("greet failed: %s, original error: %w", err.Error(), orig)
 	}
 	err = r.login()
 	if err != nil {
@@ -250,10 +261,6 @@ func (r *socket) reconnect(orig error) error {
 }
 
 func (r *socket) read() ([]byte, error) {
-	// each response has a fixed 8-byte header, the first 4 bytes is the response Id assigned by the server
-	// and the next 4 bytes is the content length of the response body
-	// byte format as used in python is: <II
-	// in go's binary encoding this should be reading two unsigned int in a little-endian byte order
 	var responseId, contentLength int32
 	err := binary.Read(r.con, binary.LittleEndian, &responseId)
 	if err != nil {
@@ -263,10 +270,8 @@ func (r *socket) read() ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("read content length failed: %w", err)
 	}
-
 	answer := make([]byte, contentLength)
 	_, err = io.ReadFull(r.con, answer)
-
 	return r.xor(answer), err
 }
 
@@ -274,7 +279,6 @@ func (r *socket) xor(src []byte) []byte {
 	if r.xorKey == nil {
 		return src
 	}
-
 	msg := make([]byte, len(src))
 	for i, b := range src {
 		msg[i] = b ^ r.xorKey[i%len(r.xorKey)]
